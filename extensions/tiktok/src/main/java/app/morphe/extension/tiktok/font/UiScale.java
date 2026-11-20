@@ -4,21 +4,35 @@
  */
 package app.morphe.extension.tiktok.font;
 
+import android.content.Context;
+import android.content.res.Configuration;
+
+import app.morphe.extension.shared.Logger;
 import app.morphe.extension.tiktok.settings.Settings;
 
 /**
- * Shrinks TikTok's whole interface. At startup TikTok's text size manager rewrites the app's
- * display density from a factor (1.0 on its default size); this scales that factor, so layouts,
- * icons and text all get smaller together and TikTok's own sizes keep their proportions.
+ * Shrinks TikTok's whole interface. Every activity's context gets a lower density, so layouts,
+ * icons and text (TikTok's Tux text is sized in dp) all get smaller together.
  */
 @SuppressWarnings("unused")
 public final class UiScale {
     private UiScale() {}
 
-    /** TikTok's density factor, scaled by the UI size picked in Hushfeed settings. */
-    public static float scaleDensityFactor(float factor) {
-        int percent = Settings.UI_SCALE_PERCENT.get();
-        if (percent <= 0 || percent >= 100) return factor;
-        return factor * percent / 100f;
+    /** An activity's base context with the UI size picked in Hushfeed settings applied. */
+    public static Context wrap(Context base) {
+        try {
+            int percent = Settings.UI_SCALE_PERCENT.get();
+            if (base == null || percent <= 0 || percent >= 100) return base;
+            float factor = percent / 100f;
+            Configuration config = new Configuration(base.getResources().getConfiguration());
+            config.densityDpi = Math.round(config.densityDpi * factor);
+            config.screenWidthDp = Math.round(config.screenWidthDp / factor);
+            config.screenHeightDp = Math.round(config.screenHeightDp / factor);
+            config.smallestScreenWidthDp = Math.round(config.smallestScreenWidthDp / factor);
+            return base.createConfigurationContext(config);
+        } catch (Throwable failure) {
+            Logger.printException(() -> "UI scale failed", failure);
+            return base;
+        }
     }
 }
