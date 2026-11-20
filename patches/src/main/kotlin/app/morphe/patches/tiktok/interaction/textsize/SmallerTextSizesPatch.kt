@@ -4,20 +4,16 @@
  */
 package app.morphe.patches.tiktok.interaction.textsize
 
-import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.mutableClassDefBy
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
-import app.morphe.patcher.util.smali.ExternalLabel
 import app.morphe.patches.shared.compat.AppCompatibilities
 import app.morphe.patches.tiktok.misc.extension.sharedExtensionPatch
 import app.morphe.patches.tiktok.misc.settings.SettingsStatusLoadFingerprint
 import app.morphe.patches.tiktok.misc.settings.configurableBytecodePatch as bytecodePatch
 import app.morphe.patches.tiktok.misc.settings.settingsPatch
-import app.morphe.patches.tiktok.shared.requireLocals
 import app.morphe.util.addInstruction
 import app.morphe.util.addInstructions
-import app.morphe.util.addInstructionsWithLabels
 import app.morphe.util.getReference
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
@@ -39,7 +35,7 @@ private const val TUX_ICON_VIEW = "Lcom/bytedance/tux/icon/TuxIconView;"
 val smallerTextSizesPatch = bytecodePatch(
     name = PATCH,
     description = "Adds three stops below the smallest size on TikTok's own Text size slider, " +
-        "for smaller text and more on screen. Starts off. Turn it on in Hushfeed settings > " +
+        "for smaller text. Starts off. Turn it on in Hushfeed settings > " +
         "App, then pick a stop in Settings and privacy > Accessibility > Text size.",
 ) {
     category("Interface")
@@ -53,32 +49,44 @@ val smallerTextSizesPatch = bytecodePatch(
                 "Lapp/morphe/extension/tiktok/settings/SettingsStatus;->enableSmallerTextSizes()V",
         )
 
-        // TikTok's text size manager: one int mode field and two methods that turn it into the
-        // interface's factor. With an extra stop picked, both answer that stop's factor.
+        // TikTok's text size manager: one int mode field, read by the two methods that turn it
+        // into a factor. Its smallest mode answers 1.0, and every extra stop saves that mode.
         val manager = TextSizeModeLoadFingerprint.classDef
         val factors = manager.methods.filter { it.isModeFactor(manager.type) }
-        if (factors.size != 2) {
-            throw PatchException("$PATCH: expected 2 text size factor methods, found ${factors.size}.")
-        }
+        if (factors.isEmpty()) throw PatchException("$PATCH: the text size manager has no factor methods.")
         val modeFields = factors.map { it.modeField(manager.type) }.distinct()
         val mode = modeFields.singleOrNull()
             ?: throw PatchException("$PATCH: the factor methods read different mode fields: $modeFields.")
-        factors.forEach { factor ->
-            factor.requireLocals(PATCH, 1)
-            factor.addInstructionsWithLabels(
-                0,
-                """
-                    sget v0, $mode
-                    invoke-static {v0}, $EXTENSION->useExtraStop(I)Z
-                    move-result v0
-                    if-eqz v0, :morphe_keep_text_size_factor
-                    invoke-static {}, $EXTENSION->extraStopFactor()F
-                    move-result v0
-                    return v0
-                """,
-                ExternalLabel("morphe_keep_text_size_factor", factor.getInstruction(0)),
-            )
-        }
+
+        // Tux text is sized in dp from a style object built in one place; with an extra stop
+        // picked its size and line height shrink as the style is made.
+        val styleType = TuxSetFontFingerprint.method.instructionsList()
+            .mapNotNull { it.getReference<MethodReference>() }
+            .firstOrNull { ref ->
+                ref.parameterTypes.map { it.toString() } == listOf("I", "Z", "Z") && ref.returnType.startsWith("L")
+            }?.returnType
+            ?: throw PatchException("$PATCH: setTuxFont builds no text style.")
+        val styleInit = mutableClassDefBy(styleType).methods.singleOrNull { method ->
+            method.name == "<init>" && method.parameterTypes.take(2).map { it.toString() } == listOf("I", "I")
+        } ?: throw PatchException("$PATCH: the text style $styleType has no (II...) constructor.")
+        styleInit.addInstructions(
+            0,
+            """
+                invoke-static/range {p1 .. p1}, $EXTENSION->scaleTextSize(I)I
+                move-result p1
+                invoke-static/range {p2 .. p2}, $EXTENSION->scaleTextSize(I)I
+                move-result p2
+            """,
+        )
+
+        // Text outside Tux is sized in sp; each screen's font scale shrinks with the extra stop.
+        TextSizeAttachBaseContextFingerprint.method.addInstructions(
+            0,
+            """
+                invoke-static/range {p1 .. p1}, $EXTENSION->wrap(Landroid/content/Context;)Landroid/content/Context;
+                move-result-object p1
+            """,
+        )
 
         // The slider works in positions. Its highest position is set once, when it is built.
         val slider = TextSizePageViewCreatedFingerprint.method.instructionsList()

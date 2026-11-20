@@ -46,3 +46,28 @@ internal object TextSizePageViewCreatedFingerprint : Fingerprint(
     returnType = "V",
     parameters = listOf("Landroid/view/View;", "Landroid/os/Bundle;"),
 )
+
+/**
+ * TuxTextView.setTuxFont, which asks a static (IZZ) builder for a text style (size and line
+ * height in dp, typeface, factor) and applies it. Most of TikTok's text is a TuxTextView.
+ */
+internal object TuxSetFontFingerprint : Fingerprint(
+    definingClass = "Lcom/bytedance/tux/input/TuxTextView;",
+    name = "setTuxFont",
+    returnType = "V",
+    parameters = listOf("I"),
+)
+
+/**
+ * AppCompatActivity's attachBaseContext, which nearly every TikTok screen inherits. The class
+ * name is obfuscated (X.02cp on 47.7.1, X.02cz on 47.9.2); TikTok's build tooling leaves methods
+ * named after it in the class.
+ */
+internal object TextSizeAttachBaseContextFingerprint : Fingerprint(
+    name = "attachBaseContext",
+    returnType = "V",
+    parameters = listOf("Landroid/content/Context;"),
+    custom = { _, classDef ->
+        classDef.methods.any { it.name.startsWith("androidx_appcompat_app_AppCompatActivity_") }
+    },
+)
