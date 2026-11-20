@@ -1,0 +1,61 @@
+name: Test build
+
+# Builds this fork's bundle and publishes it as a release, so it can be added to Morphe Manager
+# as a source for testing. Upstream releases with its own script; this workflow is fork-only.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: read
+
+concurrency: test-build
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Build
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: ./gradlew :patches:buildAndroid --no-daemon
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          base=$(grep '^version' gradle.properties | cut -d= -f2 | tr -d ' ')
+          version="$base-inx.$GITHUB_RUN_NUMBER"
+          bundle=$(ls patches/build/release/*.mpp | head -1)
+          cp "$bundle" "patches-$version.mpp"
+          gh release create "v$version" "patches-$version.mpp" --prerelease \
+            --title "v$version (test build)" --target "$GITHUB_SHA" \
+            --notes "Test build of Hushfeed $base with this fork's draft PRs. Unsigned."
+
+          python3 -I - "$version" <<'PY'
+          import datetime, json, os, sys
+          version, repo = sys.argv[1], os.environ["GITHUB_REPOSITORY"]
+          json.dump({
+              "version": version,
+              "created_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S"),
+              "description": f"Test build of Hushfeed with inxomnyaa's draft PRs ({version}).",
+              "download_url": f"https://github.com/{repo}/releases/download/v{version}/patches-{version}.mpp",
+          }, open("patches-bundle.json", "w"), indent=2)
+          PY
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add patches-bundle.json
+          git commit -m "chore: publish v$version [skip ci]"
+          git push origin HEAD:main
