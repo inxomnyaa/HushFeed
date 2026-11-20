@@ -43,6 +43,15 @@
       ],
       "options": [
         {
+          "key": "inAppSwitch",
+          "title": "Switch in Hushfeed settings",
+          "description": "Adds AMOLED dark mode to Hushfeed settings > App, so you can go back to TikTok's own dark grays without patching again. Turn this off if a 32-bit Morphe Manager runs out of memory: AMOLED then stays on, and the switch is left out.",
+          "required": false,
+          "type": "kotlin.Boolean",
+          "default": true,
+          "values": null
+        },
+        {
           "key": "backgroundColor",
           "title": "Dark background color",
           "description": "Pick a color, or type a solid color code like #000000. Black lets OLED screens turn those pixels off completely.",
@@ -11386,6 +11395,45 @@
       ]
     },
     {
+      "name": "Smaller text sizes",
+      "description": "Adds three stops below the smallest size on TikTok's own Text size slider, for smaller text and more on screen. Starts off. Turn it on in Hushfeed settings > App, then pick a stop in Settings and privacy > Accessibility > Text size.",
+      "category": "Interface",
+      "use": true,
+      "dependencies": [
+        "Patch",
+        "Settings"
+      ],
+      "compatiblePackages": {
+        "com.zhiliaoapp.musically": [
+          "47.9.2"
+        ]
+      },
+      "compatibility": [
+        {
+          "name": "TikTok",
+          "packageName": "com.zhiliaoapp.musically",
+          "description": null,
+          "appIconColor": 16657493,
+          "signatures": [
+            "9041803e91bcb814b4b4399fb5c85a91640b755e5e8ba76813814bf4cf2ab5ba"
+          ],
+          "targets": [
+            {
+              "version": "47.9.2",
+              "experimental": false,
+              "versionCodes": {
+                "ARM64_V8A": 2024709020,
+                "ARMEABI_V7A": 2024709020,
+                "X86": 2024709020,
+                "X86_64": 2024709020
+              }
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
       "name": "Split activity list",
       "description": "Shows the Inbox's Activity page as two lists, your newest comments on top and likes below, each scrolling on its own, with a bar between them that swaps them or hides the lower one. Starts off. Turn it on in Hushfeed settings > Inbox.",
       "category": "Inbox",
@@ -12249,6 +12297,45 @@
           "values": null
         }
       ]
+    },
+    {
+      "name": "UI scale",
+      "description": "Makes TikTok's whole interface smaller, text and buttons alike, so more fits on screen. Starts at 100 %, which changes nothing. Pick a size in Hushfeed settings > App, then restart TikTok.",
+      "category": "Interface",
+      "use": true,
+      "dependencies": [
+        "Patch",
+        "Settings"
+      ],
+      "compatiblePackages": {
+        "com.zhiliaoapp.musically": [
+          "47.9.2"
+        ]
+      },
+      "compatibility": [
+        {
+          "name": "TikTok",
+          "packageName": "com.zhiliaoapp.musically",
+          "description": null,
+          "appIconColor": 16657493,
+          "signatures": [
+            "9041803e91bcb814b4b4399fb5c85a91640b755e5e8ba76813814bf4cf2ab5ba"
+          ],
+          "targets": [
+            {
+              "version": "47.9.2",
+              "experimental": false,
+              "versionCodes": {
+                "ARM64_V8A": 2024709020,
+                "ARMEABI_V7A": 2024709020,
+                "X86": 2024709020,
+                "X86_64": 2024709020
+              }
+            }
+          ]
+        }
+      ],
+      "options": []
     },
     {
       "name": "Use non-personalized search",
